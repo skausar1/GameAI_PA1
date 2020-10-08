@@ -16,38 +16,36 @@ def dijkstras_shortest_path(initial_position, destination, graph, adj):
         If a path exits, return a list containing all cells from initial_position to destination.
         Otherwise, return None.
     """
-    adject = adj(graph, initial_position)
-    dij_dict = {initial_position:0}
     qheap = []
-    for c in adject:
-        heappush(qheap, c)
-        dij_dict[c[0]] = c[1]
+    heappush(qheap, (0, initial_position))
+    dij_cost = {initial_position:0.0}
+    dij_came = {initial_position:None}
     while qheap:
-        cell = heappop(qheap)
-        if cell[0] == destination:
+        cell = heappop(qheap)[1]
+        if cell == destination:
             break
-        if cell[0] in graph['walls']:
-            continue
-        costs = adj(graph, cell[0])
-        temp_dict = {(c[0], c[1] + dij_dict[cell[0]]) for c in costs if not c[0] in dij_dict or dij_dict[c[0]] > c[1] + dij_dict[cell[0]]}
-        for val in temp_dict:
-            dij_dict[val[0]] = val[1]
-            heappush(qheap, val)
-    if not destination in dij_dict:
+
+        for c in adj(graph, cell):
+            next_cost = c[0]
+            next_cell = c[1]
+            new_cost = dij_cost[cell] + next_cost
+
+            if next_cell not in dij_cost or new_cost < dij_cost[next_cell]:
+                dij_cost[next_cell] = new_cost
+                priority = new_cost
+                heappush(qheap, (priority, next_cell))
+                dij_came[next_cell] = cell
+
+    if not destination in dij_cost:
         return
+
+    path = []
+
     curr = destination
-    path = [destination]
-    check = curr
-    found = check
-    while curr != initial_position:
-        for y in range(3):
-            for x in range (3):
-                check = (curr[0] + (x-1), curr[1] + (y-1))
-                if check in dij_dict and dij_dict[check] < dij_dict[curr] and dij_dict[check] < dij_dict[found]:
-                    found = check
-        path.insert(0,found)
-        curr = found
-    path.insert(0, initial_position)
+    while curr != initial_position :
+        path.append(curr)
+        curr = dij_came[curr]
+
     return path
 
 
@@ -63,23 +61,23 @@ def dijkstras_shortest_path_to_all(initial_position, graph, adj):
         A dictionary, mapping destination cells to the cost of a path from the initial_position.
     """
 
-    adject = adj(graph, initial_position)
-    dij_dict = {initial_position:0}
     qheap = []
-    for c in adject:
-        heappush(qheap, c)
-        dij_dict[c[0]] = c[1]
+    heappush(qheap, (0, initial_position))
+    dij_cost = {initial_position:0.0}
     while qheap:
-        cell = heappop(qheap)
-        if cell[0] in graph['walls']:
-            continue
-        costs = adj(graph, cell[0])
-        temp_dict = {(c[0], c[1] + dij_dict[cell[0]]) for c in costs if not c[0] in dij_dict or dij_dict[c[0]] > c[1] + dij_dict[cell[0]]}
-        for val in temp_dict:
-            dij_dict[val[0]] = val[1]
-            heappush(qheap, val)
+        cell = heappop(qheap)[1]
 
-    return dij_dict
+        for c in adj(graph, cell):
+            next_cost = c[0]
+            next_cell = c[1]
+            new_cost = dij_cost[cell] + next_cost
+
+            if next_cell not in dij_cost or new_cost < dij_cost[next_cell]:
+                dij_cost[next_cell] = new_cost
+                priority = new_cost
+                heappush(qheap, (priority, next_cell))
+
+    return dij_cost
 
 
 def navigation_edges(level, cell):
@@ -103,16 +101,15 @@ def navigation_edges(level, cell):
     near_cost = []
     sqrt2 = sqrt(2)*.5
     for c in near_cells:
+        cost = 0.0
         if c in level['spaces']:
             if c[0] != cell[0] and c[1] != cell[1]:
                 cost = level['spaces'][cell]*sqrt2 + level['spaces'][c]*sqrt2
-                near_cost.append((c, cost))
             else:
                 cost = level['spaces'][cell]*0.5 + level['spaces'][c]*0.5
-                near_cost.append((c, cost))
         elif c in level['walls']:
-            cost = inf
-            near_cost.append((c, cost))
+            continue
+        heappush(near_cost, (cost, c))
     return near_cost
 
 
@@ -167,10 +164,14 @@ def cost_to_all_cells(filename, src_waypoint, output_filename):
 
 
 if __name__ == '__main__':
-    filename, src_waypoint, dst_waypoint = 'example.txt', 'a','d'
+    filename, src_waypoint, dst_waypoint = 'test_maze.txt', 'a','b'
 
+    level = load_level(filename)
+    show_level(level)
+
+    # Retrieve the source coordinates from the level.
     # Use this function call to find the route between two waypoints.
     test_route(filename, src_waypoint, dst_waypoint)
 
     # Use this function to calculate the cost to all reachable cells from an origin point.
-    #cost_to_all_cells(filename, src_waypoint, 'my_costs.csv')
+    cost_to_all_cells(filename, src_waypoint, 'my_costs.csv')
